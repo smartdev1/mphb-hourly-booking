@@ -1,0 +1,16 @@
+/* MPHB Hourly Booking */
+.mphb-h-picker{margin-top:14px;padding:14px;border:1px solid #ddd;border-radius:6px;background:#fafafa}
+.mphb-h-row{display:flex;gap:16px;flex-wrap:wrap}
+.mphb-h-col{flex:1;min-width:130px}
+.mphb-h-lbl{display:block;font-weight:600;font-size:.85em;color:#333;margin-bottom:5px}
+.mphb-h-col select{width:100%;padding:7px 10px;border:1px solid #ccc;border-radius:4px;font-size:.95em}
+.mphb-h-col select:disabled{background:#f0f0f0;color:#999}
+.mphb-h-summary{display:flex;gap:20px;margin-top:10px;padding:9px 13px;background:#e8f5e9;border-left:4px solid #4caf50;border-radius:4px;font-size:.9em;flex-wrap:wrap}
+.mphb-h-dur,.mphb-h-price{font-weight:700;color:#2e7d32}
+.mphb-h-error{margin-top:8px;padding:9px 13px;background:#fce4e4;border-left:4px solid #e53935;border-radius:4px;color:#c62828;font-size:.85em}
+.mphb-h-bar{margin-top:14px;height:20px;background:#e0e0e0;border-radius:4px;overflow:hidden;position:relative}
+.mphb-h-bar-inner{position:relative;width:100%;height:100%}
+.mphb-h-seg{position:absolute;top:0;height:100%;border-radius:2px}
+.mphb-h-seg--bk{background:repeating-linear-gradient(45deg,#e53935,#e53935 4px,#ffcdd2 4px,#ffcdd2 8px);opacity:.8}
+.mphb-h-seg--sel{background:#4caf50;opacity:.75}
+@media(max-width:480px){.mphb-h-row{flex-direction:column}.mphb-h-summary{flex-direction:column;gap:6px}}

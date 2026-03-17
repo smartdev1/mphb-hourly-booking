@@ -1,0 +1,148 @@
+--- a/includes/shortcodes/checkout-shortcode/step-booking.php
++++ b/includes/shortcodes/checkout-shortcode/step-booking.php
+@@ Méthode parseBookingData(), dans la boucle foreach ($bookingDetails), après :
+     $rateId = isset( $roomDetails['rate_id'] ) ? \MPHB\Utils\ValidateUtils::validateInt( $roomDetails['rate_id'] ) : null;
+-    if ( ! $rateId ) {
+-        $errors[] = __( 'Rate is not valid.', 'motopress-hotel-booking' );
+-        break;
+-    }
+
++    /**
++     * MPHB Hourly Booking: allow rate_id = 0 for hourly room types.
++     * The rate validation is bypassed; price is calculated separately.
++     */
++    $isHourlyRoom = (bool) get_post_meta( $roomTypeId, '_mphb_hourly_enabled', true );
++    if ( ! $rateId && ! $isHourlyRoom ) {
++        $errors[] = __( 'Rate is not valid.', 'motopress-hotel-booking' );
++        break;
++    }
+
+@@ Dans la même boucle, après la vérification in_array($rateId, $allowedRatesIds) :
+     if ( ! in_array( $rateId, $allowedRatesIds ) ) {
+-        $errors[] = __( 'Rate is not valid.', 'motopress-hotel-booking' );
+-        break;
+-    }
+
++    if ( ! $isHourlyRoom && ! in_array( $rateId, $allowedRatesIds ) ) {
++        $errors[] = __( 'Rate is not valid.', 'motopress-hotel-booking' );
++        break;
++    }
+
+@@ Dans la même boucle, autour de isBookingRulesViolated() :
+     if ( mphb_availability_facade()->isBookingRulesViolated(
+             $roomType->getOriginalId(),
+             $this->checkInDate,
+             $this->checkOutDate,
+             $isIgnoreBookingRules
+         )
+     ) {
+-        $this->errors[] = sprintf( ... );
+-        break;
+-    }
+
++    if ( ! $isHourlyRoom && mphb_availability_facade()->isBookingRulesViolated(
++            $roomType->getOriginalId(),
++            $this->checkInDate,
++            $this->checkOutDate,
++            $isIgnoreBookingRules
++        )
++    ) {
++        $this->errors[] = sprintf( ... );
++        break;
++    }
+
+================================================
+INSTRUCTIONS D'APPLICATION DU PATCH 2
+================================================
+
+Fichier cible :
+  {motopress-hotel-booking}/includes/shortcodes/checkout-shortcode/step-booking.php
+
+Ce patch modifie la méthode parseBookingData() pour que les room types
+avec la meta _mphb_hourly_enabled = 1 passent la validation sans rate_id.
+
+CHANGEMENT 1 — Validation rate_id non-null (vers ligne ~80 dans la boucle)
+Chercher :
+    $rateId = isset( $roomDetails['rate_id'] ) ? \MPHB\Utils\ValidateUtils::validateInt( $roomDetails['rate_id'] ) : null;
+    if ( ! $rateId ) {
+        $errors[] = __( 'Rate is not valid.', 'motopress-hotel-booking' );
+        break;
+    }
+
+Remplacer par :
+    $rateId = isset( $roomDetails['rate_id'] ) ? \MPHB\Utils\ValidateUtils::validateInt( $roomDetails['rate_id'] ) : null;
+    $isHourlyRoom = (bool) get_post_meta( $roomTypeId, '_mphb_hourly_enabled', true );
+    if ( ! $rateId && ! $isHourlyRoom ) {
+        $errors[] = __( 'Rate is not valid.', 'motopress-hotel-booking' );
+        break;
+    }
+
+------------------------------------------------------
+
+CHANGEMENT 2 — Validation rate_id dans les allowed rates
+Chercher :
+    if ( ! in_array( $rateId, $allowedRatesIds ) ) {
+        $errors[] = __( 'Rate is not valid.', 'motopress-hotel-booking' );
+        break;
+    }
+
+Remplacer par :
+    if ( ! $isHourlyRoom && ! in_array( $rateId, $allowedRatesIds ) ) {
+        $errors[] = __( 'Rate is not valid.', 'motopress-hotel-booking' );
+        break;
+    }
+
+------------------------------------------------------
+
+CHANGEMENT 3 — isBookingRulesViolated() bypass
+Chercher :
+    if ( mphb_availability_facade()->isBookingRulesViolated(
+            $roomType->getOriginalId(),
+            $this->checkInDate,
+            $this->checkOutDate,
+            $isIgnoreBookingRules
+        )
+    ) {
+        $this->errors[] = sprintf( __( 'Selected dates do not meet booking rules for type %s', 'motopress-hotel-booking' ), $roomType->getTitle() );
+        break;
+    }
+
+Remplacer par :
+    if ( ! $isHourlyRoom && mphb_availability_facade()->isBookingRulesViolated(
+            $roomType->getOriginalId(),
+            $this->checkInDate,
+            $this->checkOutDate,
+            $isIgnoreBookingRules
+        )
+    ) {
+        $this->errors[] = sprintf( __( 'Selected dates do not meet booking rules for type %s', 'motopress-hotel-booking' ), $roomType->getTitle() );
+        break;
+    }
+
+------------------------------------------------------
+
+CONTEXTE GLOBAL dans le fichier (méthode parseBookingData, vers ligne 75-140) :
+
+    foreach ( $bookingDetails as $index => $roomDetails ) {
+
+        $roomTypeId = isset( $roomDetails['room_type_id'] ) ? \MPHB\Utils\ValidateUtils::validateInt( $roomDetails['room_type_id'] ) : null;
+        // ... validation roomType ...
+
+        $rateId = isset( $roomDetails['rate_id'] ) ? \MPHB\Utils\ValidateUtils::validateInt( $roomDetails['rate_id'] ) : null;
+        // ← CHANGEMENT 1 ICI
+
+        $allowedRates = mphb_prices_facade()->getActiveRates( ... );
+        $allowedRatesIds = array_map( ... );
+
+        // ← CHANGEMENT 2 ICI
+
+        // ... validation adults/children ...
+
+        // ← CHANGEMENT 3 ICI (isBookingRulesViolated)
+
+        $bookingRoomsDetails[] = [...];
+    }
+
+Ces 3 changements sont les SEULES modifications à apporter à step-booking.php.
+Elles sont conditionnées à _mphb_hourly_enabled = 1, donc non-destructives
+pour les room types journaliers standard.

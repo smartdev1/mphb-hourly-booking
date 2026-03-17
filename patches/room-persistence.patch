@@ -1,0 +1,56 @@
+--- a/includes/persistences/room-persistence.php
++++ b/includes/persistences/room-persistence.php
+@@ Méthode findLockedRooms(), après la ligne :
+      $roomIds = array_map( 'absint', $roomIds );
+ 
++     /**
++      * Permet aux extensions de re-filtrer la liste des chambres bloquées.
++      * Utilisé par MPHB Hourly Booking pour retirer les chambres horaires
++      * libres sur le créneau demandé.
++      *
++      * @param int[]  $roomIds  Chambres considérées occupées par MPHB.
++      * @param array  $atts     Attributs de searchRooms() (from_date, to_date, …).
++      */
++     $roomIds = apply_filters( 'mphb_found_locked_rooms', $roomIds, $atts );
++
+      return $roomIds;
+  }
+
+================================================
+INSTRUCTIONS D'APPLICATION DU PATCH
+================================================
+
+Fichier cible :
+  {motopress-hotel-booking}/includes/persistences/room-persistence.php
+
+Chercher la ligne (vers la fin de la méthode findLockedRooms) :
+  $roomIds = array_map( 'absint', $roomIds );
+
+Juste APRÈS cette ligne, ajouter le bloc suivant :
+
+------------------------------------------------------
+        /**
+         * Permet aux extensions de re-filtrer la liste des chambres bloquées.
+         * Utilisé par MPHB Hourly Booking pour la gestion des créneaux horaires.
+         *
+         * @param int[]  $roomIds  Chambres considérées occupées par MPHB.
+         * @param array  $atts     Attributs de searchRooms().
+         */
+        $roomIds = apply_filters( 'mphb_found_locked_rooms', $roomIds, $atts );
+------------------------------------------------------
+
+C'est la SEULE modification à apporter au code source de MPHB.
+Elle est non-destructive : si aucune extension n'accroche ce filtre,
+le comportement reste exactement identique à l'original.
+
+Contexte dans le fichier (vers la ligne ~270) :
+
+    // Find rooms
+    $roomIds = $wpdb->get_col( $sql );
+    $roomIds = array_map( 'absint', $roomIds );
+
+    // ← INSÉRER ICI ↓
+    $roomIds = apply_filters( 'mphb_found_locked_rooms', $roomIds, $atts );
+
+    return $roomIds;
+}
