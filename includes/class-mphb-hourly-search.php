@@ -18,7 +18,6 @@ class MPHB_Hourly_Search {
         );
     }
 
-    
     public static function inject_mount_point(): void {
         if ( ! is_singular( MPHB()->postTypes()->roomType()->getPostType() ) ) return;
 
@@ -36,7 +35,7 @@ class MPHB_Hourly_Search {
            . ' data-form-id="booking-form-' . esc_attr( $rt_id ) . '"'
            . ' data-prev-start="' . esc_attr( $prev_start ) . '"'
            . ' data-prev-end="' . esc_attr( $prev_end ) . '"'
-           . ' style="display:none">';
+           . '>';
 
         echo '<input type="hidden" name="mphb_hourly_start"'
            . ' class="mphb-hourly-start-value"'
@@ -50,8 +49,6 @@ class MPHB_Hourly_Search {
         echo '<div class="mphb-h-picker-search"></div>';
         echo '</div>';
     }
-
-   
 
     public static function inject_hourly_in_reservation_cart(): void {
         $start = sanitize_text_field( $_GET['mphb_hourly_start'] ?? '' );
@@ -72,17 +69,20 @@ class MPHB_Hourly_Search {
         $end_m    = MPHB_Hourly_Helper::to_minutes( $end );
         $duration = $end_m - $start_m;
 
-        $rt_id     = isset( $_GET['mphb_room_type_id'] ) ? (int) $_GET['mphb_room_type_id'] : 0;
-        $price_str = '';
+        $rt_id    = isset( $_GET['mphb_room_type_id'] ) ? (int) $_GET['mphb_room_type_id'] : 0;
+        $price    = 0.0;
+        $currency = MPHB()->settings()->currency()->getCurrencySymbol();
 
         if ( $rt_id && MPHB_Hourly_Helper::is_hourly( $rt_id ) && $duration > 0 ) {
-            $price     = MPHB_Hourly_Price::calc( $rt_id, $duration );
-            $price_str = ' &middot; ' . esc_html( MPHB()->settings()->currency()->getCurrencySymbol() )
-                       . number_format( $price, 2 );
+            $price = MPHB_Hourly_Price::calc( $rt_id, $duration );
         }
 
         $dur_label = $duration
             ? ' (' . esc_html( MPHB_Hourly_Helper::format_duration( $duration ) ) . ')'
+            : '';
+
+        $price_str = $price > 0
+            ? ' &middot; ' . esc_html( $currency ) . number_format( $price, 2 )
             : '';
 
         echo '<div class="mphb-hourly-cart-summary" style="margin:8px 0;padding:8px 12px;'
@@ -92,5 +92,34 @@ class MPHB_Hourly_Search {
            . $dur_label
            . $price_str
            . '</div>';
+
+        // Corriger via JS les prix €0 que MPHB affiche (0 nuit × tarif = 0)
+        if ( $price > 0 && $rt_id ) {
+            $price_html = esc_js( '<span class="mphb-currency">' . $currency . '</span>' . number_format( $price, 2 ) );
+            echo '<script>
+(function(){
+    function fixPrices(){
+        // Prix sur la carte du logement
+        var card = document.querySelector(".mphb-room-type.post-' . $rt_id . '");
+        if(card){
+            var priceEl = card.querySelector(".mphb-regular-price .mphb-price");
+            if(priceEl){ priceEl.innerHTML = "' . $price_html . '"; }
+            var period = card.querySelector(".mphb-price-period");
+            if(period){ period.textContent = "pour ce cr\u00e9neau"; }
+        }
+        // Prix dans le bloc recommandation
+        var recSub = document.querySelector(".mphb-recommedation-item-subtotal .mphb-price");
+        if(recSub){ recSub.innerHTML = "' . $price_html . '"; }
+        var recTot = document.querySelector(".mphb-recommendation-total-value .mphb-price");
+        if(recTot){ recTot.innerHTML = "' . $price_html . '"; }
+    }
+    document.addEventListener("DOMContentLoaded", function(){
+        fixPrices();
+        setTimeout(fixPrices, 600);
+        setTimeout(fixPrices, 1800);
+    });
+})();
+</script>';
+        }
     }
 }

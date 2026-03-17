@@ -56,6 +56,8 @@ class MPHB_Hourly_Scripts {
                 'err_min'       => __( 'Durée minimum : %s.', 'mphb-hourly' ),
                 'err_max'       => __( 'Durée maximum : %s.', 'mphb-hourly' ),
                 'slot_required' => __( 'Veuillez sélectionner un créneau horaire.', 'mphb-hourly' ),
+                'mode_daily'    => __( 'À la journée', 'mphb-hourly' ),
+                'mode_hourly'   => __( 'À l\'heure', 'mphb-hourly' ),
             ],
         ] );
     }

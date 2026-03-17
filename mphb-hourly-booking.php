@@ -9,7 +9,7 @@
 
 defined( 'ABSPATH' ) || exit;
 
-define( 'MPHB_HOURLY_VERSION', '1.1.0' );
+define( 'MPHB_HOURLY_VERSION', '1.2.0' );
 define( 'MPHB_HOURLY_PATH',    plugin_dir_path( __FILE__ ) );
 define( 'MPHB_HOURLY_URL',     plugin_dir_url( __FILE__ ) );
 

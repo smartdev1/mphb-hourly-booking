@@ -18,17 +18,18 @@ defined( 'ABSPATH' ) || exit;
 class MPHB_Hourly_Confirmation {
 
     public static function init(): void {
-       
+        // Page de confirmation front-end
         add_action( 'mphb_sc_booking_confirmation_booking_details',
             [ __CLASS__, 'render_slot_on_confirmation' ], 10 );
 
+        // Page de confirmation après paiement (même hook)
         add_action( 'mphb_sc_booking_confirmation_bottom',
             [ __CLASS__, 'render_slot_on_confirmation_bottom' ], 5 );
 
-        
+        // Meta box admin sur la page d'édition d'un booking
         add_action( 'add_meta_boxes', [ __CLASS__, 'add_booking_meta_box' ] );
 
-        
+        // Affichage dans les détails booking admin (vue liste)
         add_filter( 'mphb_booking_details_html', [ __CLASS__, 'append_slot_to_booking_details' ], 10, 2 );
     }
 
@@ -50,14 +51,14 @@ class MPHB_Hourly_Confirmation {
     }
 
     public static function render_slot_on_confirmation_bottom(): void {
-        
+        // Récupérer le booking depuis l'URL (GET params booking_id / booking_key)
         $booking = self::get_booking_from_request();
         if ( ! $booking ) return;
 
         $slot_html = self::get_slot_html( $booking->getId() );
         if ( ! $slot_html ) return;
 
-        
+        // N'afficher que si pas déjà affiché par l'action précédente
         static $already_shown = false;
         if ( $already_shown ) return;
         $already_shown = true;
@@ -126,7 +127,9 @@ class MPHB_Hourly_Confirmation {
         echo '</tbody></table>';
     }
 
-   
+    /* -----------------------------------------------------------------------
+     * Injection dans les détails de booking (admin liste)
+     * -------------------------------------------------------------------- */
 
     public static function append_slot_to_booking_details( string $html, $booking ): string {
         if ( ! $booking instanceof \MPHB\Entities\Booking ) return $html;
@@ -149,7 +152,9 @@ class MPHB_Hourly_Confirmation {
         return $html . $insert;
     }
 
-    
+    /* -----------------------------------------------------------------------
+     * Utilitaires
+     * -------------------------------------------------------------------- */
 
     private static function get_booking_from_request(): ?\MPHB\Entities\Booking {
         if ( ! isset( $_GET['booking_id'], $_GET['booking_key'] ) ) return null;
@@ -163,7 +168,9 @@ class MPHB_Hourly_Confirmation {
         return $booking;
     }
 
-   
+    /**
+     * Génère le HTML du bloc créneau pour le front-end.
+     */
     private static function get_slot_html( int $bid ): string {
         $start    = MPHB_Hourly_Helper::booking_start( $bid );
         $end      = MPHB_Hourly_Helper::booking_end( $bid );
