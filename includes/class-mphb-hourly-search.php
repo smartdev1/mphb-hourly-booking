@@ -11,10 +11,22 @@ class MPHB_Hourly_Search {
             [ __CLASS__, 'inject_mount_point' ]
         );
 
-        // Contexte B : page de résultats
+        // Contexte B : page de résultats — injecter dans le panier de réservation
         add_action(
             'mphb_sc_search_results_reservation_cart_before',
             [ __CLASS__, 'inject_hourly_in_reservation_cart' ]
+        );
+
+        // ── CORRECTIF : injecter dans le formulaire de recommandation ──────
+        add_action(
+            'mphb_sc_search_results_recommendation_after',
+            [ __CLASS__, 'inject_hourly_after_recommendation' ]
+        );
+
+        // ── CORRECTIF : injecter dans chaque carte de logement (bouton Réserver) ──
+        add_action(
+            'mphb_sc_search_results_room_after',
+            [ __CLASS__, 'inject_hourly_in_room_card' ]
         );
     }
 
@@ -50,6 +62,10 @@ class MPHB_Hourly_Search {
         echo '</div>';
     }
 
+    /**
+     * Injecter dans le formulaire #mphb-reservation-cart (panier latéral).
+     * Hook : mphb_sc_search_results_reservation_cart_before
+     */
     public static function inject_hourly_in_reservation_cart(): void {
         $start = sanitize_text_field( $_GET['mphb_hourly_start'] ?? '' );
         $end   = sanitize_text_field( $_GET['mphb_hourly_end']   ?? '' );
@@ -64,12 +80,117 @@ class MPHB_Hourly_Search {
         self::render_slot_summary( $start, $end );
     }
 
+    /**
+     * ── CORRECTIF ──
+     * Injecter les champs horaires dans le formulaire #mphb-recommendation
+     * via JS après le rendu, car le hook s'exécute après </form>.
+     * Hook : mphb_sc_search_results_recommendation_after
+     */
+    public static function inject_hourly_after_recommendation(): void {
+        $start = sanitize_text_field( $_GET['mphb_hourly_start'] ?? '' );
+        $end   = sanitize_text_field( $_GET['mphb_hourly_end']   ?? '' );
+
+        if ( ! $start || ! $end ) return;
+        if ( ! preg_match( '/^\d{2}:\d{2}$/', $start ) ) return;
+        if ( ! preg_match( '/^\d{2}:\d{2}$/', $end ) )   return;
+
+        $start_js = esc_js( $start );
+        $end_js   = esc_js( $end );
+
+        // Injecter les champs directement dans le formulaire via JS
+        echo "<script>
+(function(){
+    function injectHourlyInRecommendation() {
+        var form = document.getElementById('mphb-recommendation');
+        if ( ! form ) return;
+
+        // Éviter double injection
+        if ( form.querySelector('input[name=\"mphb_hourly_start\"]') ) return;
+
+        var s = document.createElement('input');
+        s.type = 'hidden';
+        s.name = 'mphb_hourly_start';
+        s.value = '{$start_js}';
+        form.appendChild(s);
+
+        var e = document.createElement('input');
+        e.type = 'hidden';
+        e.name = 'mphb_hourly_end';
+        e.value = '{$end_js}';
+        form.appendChild(e);
+    }
+
+    if ( document.readyState === 'loading' ) {
+        document.addEventListener('DOMContentLoaded', injectHourlyInRecommendation);
+    } else {
+        injectHourlyInRecommendation();
+    }
+})();
+</script>";
+    }
+
+    /**
+     * ── CORRECTIF ──
+     * Injecter les champs horaires dans chaque formulaire de logement individuel
+     * (bouton "Réserver" sur chaque carte).
+     * Hook : mphb_sc_search_results_room_after
+     */
+    public static function inject_hourly_in_room_card(): void {
+        $start = sanitize_text_field( $_GET['mphb_hourly_start'] ?? '' );
+        $end   = sanitize_text_field( $_GET['mphb_hourly_end']   ?? '' );
+
+        if ( ! $start || ! $end ) return;
+        if ( ! preg_match( '/^\d{2}:\d{2}$/', $start ) ) return;
+        if ( ! preg_match( '/^\d{2}:\d{2}$/', $end ) )   return;
+
+        $rt_id    = (int) get_the_ID();
+        $start_js = esc_js( $start );
+        $end_js   = esc_js( $end );
+
+        // Les formulaires individuels n'ont pas d'ID unique standard ;
+        // on les cible via le conteneur parent data-room-type-id
+        echo "<script>
+(function(){
+    function injectHourlyInRoomCard() {
+        var section = document.querySelector('.mphb-reserve-room-section[data-room-type-id=\"{$rt_id}\"]');
+        if ( ! section ) return;
+
+        // Chercher le formulaire parent #mphb-reservation-cart ou le plus proche
+        var form = document.getElementById('mphb-reservation-cart');
+        if ( ! form ) return;
+
+        // Éviter double injection pour ce rt_id
+        if ( form.querySelector('input[name=\"mphb_hourly_start\"]') ) return;
+
+        var s = document.createElement('input');
+        s.type = 'hidden';
+        s.name = 'mphb_hourly_start';
+        s.value = '{$start_js}';
+        form.appendChild(s);
+
+        var e = document.createElement('input');
+        e.type = 'hidden';
+        e.name = 'mphb_hourly_end';
+        e.value = '{$end_js}';
+        form.appendChild(e);
+    }
+
+    if ( document.readyState === 'loading' ) {
+        document.addEventListener('DOMContentLoaded', injectHourlyInRoomCard);
+    } else {
+        injectHourlyInRoomCard();
+    }
+})();
+</script>";
+    }
+
     private static function render_slot_summary( string $start, string $end ): void {
         $start_m  = MPHB_Hourly_Helper::to_minutes( $start );
         $end_m    = MPHB_Hourly_Helper::to_minutes( $end );
         $duration = $end_m - $start_m;
 
-        $rt_id    = isset( $_GET['mphb_room_type_id'] ) ? (int) $_GET['mphb_room_type_id'] : 0;
+        $rt_id    = isset( $_GET['mphb_room_type_id'] ) ?
+                    (int) $_GET['mphb_room_type_id'] : 0;
         $price    = 0.0;
         $currency = MPHB()->settings()->currency()->getCurrencySymbol();
 
@@ -95,7 +216,7 @@ class MPHB_Hourly_Search {
 
         // Corriger via JS les prix €0 que MPHB affiche (0 nuit × tarif = 0)
         if ( $price > 0 && $rt_id ) {
-            $price_html = esc_js(  number_format( $price, 2 ) . $currency );
+            $price_html = esc_js( number_format( $price, 2 ) . $currency );
             echo '<script>
 (function(){
     function fixPrices(){
