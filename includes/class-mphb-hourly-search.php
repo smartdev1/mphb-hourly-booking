@@ -95,7 +95,7 @@ class MPHB_Hourly_Search {
 
         // Corriger via JS les prix €0 que MPHB affiche (0 nuit × tarif = 0)
         if ( $price > 0 && $rt_id ) {
-            $price_html = esc_js( '<span class="mphb-currency">' . $currency . '</span>' . number_format( $price, 2 ) );
+            $price_html = esc_js(  number_format( $price, 2 ) . $currency );
             echo '<script>
 (function(){
     function fixPrices(){

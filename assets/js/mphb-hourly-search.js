@@ -85,16 +85,32 @@
                 applyMode( newMode, $form, $mount, $picker, S, rtId, '', '' );
             } );
 
-            // ── 8. Validation avant soumission ─────────────────────────
+            // ── 8. Validation et préparation avant soumission ──────────
             $form.on( 'submit.mphb_hourly', function ( e ) {
                 const mode = $mount.find( '.mphb-mode-btn.is-active' ).data( 'mode' );
-                if ( mode === 'hourly' && ( ! S.start || ! S.end ) ) {
+                if ( mode !== 'hourly' ) return;
+
+                // Bloquer si créneau incomplet
+                if ( ! S.start || ! S.end ) {
                     e.preventDefault();
                     $picker.find( '.mphb-h-error' )
                         .text( ( window.MPHBHourly && MPHBHourly.i18n.slot_required )
                             || 'Veuillez sélectionner un créneau horaire.' )
                         .show();
                     $mount[0].scrollIntoView( { behavior: 'smooth', block: 'center' } );
+                    return;
+                }
+
+                // Forcer check_out_date = check_in_date juste avant l'envoi
+                // (garantit que le champ ne soit jamais vide même si JS tardif)
+                const ciVal = $form.find( 'input[name="mphb_check_in_date"][type="hidden"]' ).val()
+                           || $form.find( 'input[name="mphb_check_in_date"]' ).val();
+                if ( ciVal ) {
+                    let $co = $form.find( 'input[name="mphb_check_out_date"][type="hidden"]' );
+                    if ( ! $co.length ) {
+                        $co = $( '<input type="hidden" name="mphb_check_out_date">' ).appendTo( $form );
+                    }
+                    $co.val( ciVal );
                 }
             } );
         } );

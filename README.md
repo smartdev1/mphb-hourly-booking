@@ -1,4 +1,4 @@
-# MPHB Hourly Booking — v1.2.0
+# MPHB Hourly Booking — v1.1.0
 
 Extension de MotoPress Hotel Booking (MPHB) pour les réservations à l'heure.
 
